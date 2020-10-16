@@ -1,9 +1,12 @@
 # DM-Group-Project
 Data Mining Project for Airline delay for ATL airport. 
 **Tressy Thomas and Nidhi Davis**
+
 Airline traffic are tremendously increasing year over year. More and more travelers in the US are increasingly using air transport, for it being the fastest mode of transport, mainly for time saving. Flight departure and arrival delays are critical factors affecting Airlines’ operational efficiency and customer satisfaction. With the availability of the reliable data, it is possible to provide insights into the patterns and characteristics of airline delays. Data mining techniques are leveraged to discover interesting relationships from the data that impact flight delays
 
-The main objectives of this research are 1. Conduct exploratory data analysis to identify contribution of temporal factors such as time of the day, day of the week and week of the month towards flight delays. 
+The main objectives of this research are 
+
+1. Conduct exploratory data analysis to identify contribution of temporal factors such as time of the day, day of the week and week of the month towards flight delays. 
 
 2. Understand the severely affected origin-destinations and airlines. 
 
