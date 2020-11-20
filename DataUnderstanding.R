@@ -29,7 +29,9 @@ dim(atl_data)
 #Convert the datatypes appropriately - to factor- OP_CARRIER_AIRLINE_ID
 unique(atl_data$OP_CARRIER_AIRLINE_ID) #15 different airlines operating to and from ATL
 atl_data$OP_CARRIER_AIRLINE_ID=as.factor(atl_data$OP_CARRIER_AIRLINE_ID)
-atl_data[,2:4]=as.factor(atl_data[,2:4]) 
+atl_data$MONTH=as.factor(atl_data$MONTH) 
+atl_data$DAY_OF_MONTH =as.factor(atl_data$DAY_OF_MONTH)
+atl_data$DAY_OF_WEEK=as.factor(atl_data$DAY_OF_MONTH)
 #Create the arrival delay indicator
 atl_data$arr_delay_ind=cut(atl_data$ARR_DELAY_GROUP, c(-Inf,0,Inf), c(0, 1))  #1 indicates delay
 atl_data$dep_delay_ind=cut(atl_data$DEP_DELAY_GROUP, c(-Inf,0,Inf), c(0, 1))  #1 indicates delay
@@ -123,23 +125,52 @@ test_true=test_data$delay_ind
 confusionMatrix(factor(test_pred), test_true)
 #SVM Model
 
-svm_model=svm(Class~.,train_data_ds, kernel = "radial", gamma = 1, cost = 1)
-train_pred=predict(svm_model,train_data_ds[,1:9],type = "response")
-# Recode factors
-train_pred <- ifelse(train_pred > 0.5, 1, 0)
-mean(train_data_ds$Class==train_pred)
+svm.model=train(Class~.,
+                data=train_data_ds,
+                #preProcess = c("center","scale"),
+                trControl = trainControl(method = "cv", number = 10),
+                method = "svmPoly"
+)
+svm.model
+pred.train_y=predict(svm.model, train_data_ds[,1:9])
+table(pred.train_y,train_data_ds[,10])
 
-test_pred=predict(svm_model,test_data[,1:9],type = "response")
-test_pred <- ifelse(test_pred > 0.5, 1, 0)
-mean(test_data$delay_ind==test_pred)
-confusionMatrix(factor(test_pred), test_data$delay_ind)
+#Test
+pred.test_y=predict(svm.model,test_data[,1:9])
+table(pred.test_y,test_data[,10])
+Nacc[2]=sum(pred.test_y==test_data[,10])/length(test_data$Class)
+Nmisclass[2]=sum(pred.test_y!=test_y)/length(test_y)
+cat("  SVM model accuracy = ", Nacc[2]*100 )
+cat("  Misclassification = ", Nmisclass[2]*100)
 
-# tune model to find optimal cost, gamma values
-tune.out <- tune(svm, Class~.,train_data_ds, kernel = "radial",
-                 ranges = list(cost = c(0.1,1,10,100),
-                               gamma = c(0.5,1,2,3,4)))
-# show best model
-tune.out$best.model
+### kNN Model
+knn.model=train(Class~.,
+                data=train_data_ds,
+                preProcess = c("center","scale"),
+                trControl = trainControl(method = "cv", number = 10),
+                method = "knn"
+)
+knn.model
+pred.train_y=predict(knn.model, train_X[,1:34])
+table(pred.train_y,train_X[,35])
+
+#Test
+pred.test_y=predict(knn.model,test_X)
+table(pred.test_y,test_y)
+Nacc[3]=sum(pred.test_y==test_y)/length(test_y)
+Nmisclass[3]=sum(pred.test_y!=test_y)/length(test_y)
+cat("  knn model accuracy = ", Nacc[3]*100 )
+cat("  Misclassification = ", Nmisclass[3]*100)
+
+### gbm Model
+gbm.model=train(Class~.,
+                data=train_data_ds,
+                # preProcess = c("center","scale"),
+                trControl = trainControl(method = "cv", number = 10),
+                method = "gbm",
+                verbose=FALSE
+)
+gbm.model
 
 
 check_miss<-function(atl_data){
