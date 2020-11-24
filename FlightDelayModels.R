@@ -12,6 +12,7 @@ library(caret)
 library(e1071)
 library(class)
 
+
 # Get all files from the folder
 filenames=list.files(path="C:/Users/Tressy/Desktop/Semester 3/Data Mining/Group Project/DM Project Georgia Ontime 2019",pattern="*.csv",full.names = T)
 # filenames=list.files(path="https://github.com/tressythomas/DM-Group-Project/upload/main/Datasets", pattern="*.csv",full.names = T)
@@ -98,6 +99,49 @@ freq(atl_data$delay_ind)
 # ggplot(data=atl_data,aes(x=DISTANCE ,y=ARR_DELAY_GROUP))+geom_point(aes(color=delay_ind))+
 #   theme_minimal()
 
+## Most Delyayed Routes 
+# 
+temp=atl_data %>%
+  group_by(ORIGIN,DEST,delay_ind) %>%
+  summarise(cnt=n())
+ROUTE_stat = temp%>%
+  group_by(ORIGIN,DEST)%>%
+  summarise(delay_ind=delay_ind,cnt=cnt,cntx=round(cnt*100/sum(cnt),2))
+
+ROUTE_stat_delayed_ATL_orgn=ROUTE_stat[ROUTE_stat$delay_ind=='1'&ROUTE_stat$ORIGIN=='ATL',]
+ROUTE_stat_delayed_ATL_dest=ROUTE_stat[ROUTE_stat$delay_ind=='1'&ROUTE_stat$DEST=='ATL',]
+
+arrange(ROUTE_stat_delayed_ATL_orgn,desc(cntx))
+arrange(ROUTE_stat_delayed_ATL_dest,desc(cntx,cnt))
+
+#Most operated route
+
+temp=atl_data %>%
+  group_by(ORIGIN,DEST) %>%
+  summarise(cnt=n())
+ROUTE_stat = temp%>%
+  group_by(ORIGIN,DEST)%>%
+  summarise(cnt=cnt)
+ROUTE_stat_ATL_orgn=ROUTE_stat[ROUTE_stat$ORIGIN=='ATL',]
+ROUTE_stat_ATL_dest=ROUTE_stat[ROUTE_stat$DEST=='ATL',]
+
+arrange(ROUTE_stat_ATL_orgn,desc(cnt))
+arrange(ROUTE_stat_ATL_dest,desc(cnt))
+
+#Routes withoud delay
+temp=atl_data %>%
+  group_by(ORIGIN,DEST,delay_ind) %>%
+  summarise(cnt=n())
+ROUTE_stat = temp%>%
+  group_by(ORIGIN,DEST)%>%
+  summarise(delay_ind=delay_ind,cnt=cnt,cntx=round(cnt*100/sum(cnt),2))
+
+ROUTE_stat_ontime_ATL_orgn=ROUTE_stat[ROUTE_stat$delay_ind=='0'&ROUTE_stat$ORIGIN=='ATL',]
+ROUTE_stat_ontime_ATL_dest=ROUTE_stat[ROUTE_stat$delay_ind=='0'&ROUTE_stat$DEST=='ATL',]
+
+arrange(ROUTE_stat_ontime_ATL_orgn,desc(cntx))
+arrange(ROUTE_stat_ontime_ATL_dest,desc(cntx,cnt))
+
 #To do Balancing data, split, modeling-svm, logit , evaluation
 options(scipen=999)
 # Final dataset
@@ -113,48 +157,8 @@ train_data=fnl_data[train_ix,]
 test_data=fnl_data[-train_ix,]
 train_data_ds=downSample(x=train_data[,-c(10)],
                          y=train_data[,c(10)])
-dim(train_data_ds)
-logit=glm(Class~.,train_data_ds,family="binomial")
-logit.model=train(Class~.,
-                      data=train_data_ds,
-                      #preProcess = c("center","scale"),
-                      trControl = trainControl(method = "cv", number = 5),
-                      method = "glm",family="binomial"
-)
-summary(logit.model)
-#Test
 
 
-
-# # logit_all=glm(delay_ind~.,train_data,family="binomial")
-# # summary(logit_all)
-# ######## Train Accuracy
-# train_pred=predict(logit,train_data_ds[,1:9],type = "response")
-# # Recode factors
-# train_pred <- ifelse(train_pred > 0.5, 1, 0)
-# mean(train_data_ds$Class==train_pred)
-# 
-test_pred=predict(logit,test_data[,1:9],type = "response")
-test_pred <- ifelse(test_pred > 0.5, 1, 0)
-# mean(test_data$delay_ind==test_pred)
-test_true=test_data$delay_ind
-Logit_CM=confusionMatrix(factor(test_pred), test_true)
-#SVM Model
-
-svm.model=train(delay_ind~.,
-                data=train_data,
-                #preProcess = c("center","scale"),
-                trControl = trainControl(method = "cv", number = 5),
-                method = "svmPoly"
-)
-svm.model
-pred.train_y=predict(svm.model, train_data_ds[,1:9])
-table(pred.train_y,train_data_ds[,10])
-
-#Test
-pred.test_y=predict(svm.model,test_data[,1:9])
-table(pred.test_y,test_data[,10])
-SVM_CM=confusionMatrix(pred.test_y,test_data[,10])
 ### kNN Model
 #Convert the factor variables to numeric
 set.seed(9)
@@ -170,29 +174,35 @@ train_data=fnl_data[train_ix,]
 test_data=fnl_data[-train_ix,]
 train_data_ds=downSample(x=train_data[,-c(10)],
                          y=train_data[,c(10)])
-dim(train_data_ds)
-Cls=train_data_ds[,10]
-trn=train_data_ds[,1:9]
+dim(train_data)
+Cls=train_data[,10]
+trn=train_data[,1:9]
 tst=test_data[,1:9]
-knn.pred.test_y=knn(train=trn,test=tst,cl=Cls,k=5)
+scale=preProcess(trn, method = c("center", "scale"))
+scaled.train=predict(scale,trn)
+scaled.tst=predict(scale,tst)
+knn.pred.test_y=knn(train=scaled.train,test=scaled.tst,cl=Cls,k=5)
 
 #Test
 
 knn_CM=confusionMatrix(knn.pred.test_y,test_data[,10])
 
 library(xgboost)
-trn=as.matrix(train_data_ds[,1:9])
-Cls=as.matrix(train_data_ds[,10])
+# trn=as.matrix(train_data_ds[,1:9])
+# Cls=as.matrix(train_data_ds[,10])
+trn=as.matrix(train_data[,1:9])
+Cls=train_data[,10]
+Cls=as.matrix(Cls)
 tst=as.matrix(test_data[,1:9])
 
 ### gbm Model
 xgb.fit <- xgboost(
   data = trn,
   label = Cls,
-  nrounds = 100,
+  nrounds = 500,
   objective ="binary:logistic",
   #nfold = 5,
-  verbose = 1               # evaluation metric out,
+  verbose = 0               # evaluation metric out,
 )
 # plot error vs number trees
 # ggplot(xgb.fit$evaluation_log) +
@@ -209,21 +219,42 @@ importance_matrix <- xgb.importance(model = xgb.fit)
 xgb.plot.importance(importance_matrix, top_n = 5, measure = "Gain")
 
 
-check_miss<-function(atl_data){
-  
-  cat("Original Dataset dimension:" ,dim(atl_data))
-  cat("Total missing values: ", sum(is.na(atl_data)))      #check for missing values
-  col_miss=apply(atl_data,2,function(x) sum(is.na(x)))   
-  print(col_miss)                                          #check for missing values for each column
-  
-  #missing_plot(atl_data)                                  #Visualize missingness to check for any patterns
-  #vis_miss(atl_data,warn_large_data=FALSE)
-  missing_pattern(atl_data)
-  # Looks like the issing values are for "cancelled flights". We are not considereing "cancelled" flights in this analysis.
-  # Remove the "cancelled ==1" instances.
-  atl_data=atl_data[atl_data$CANCELLED==0 & atl_data$DIVERTED==0,]
-  cat("Total missing values after removing cancelled, diverted flights: ", sum(is.na(atl_data)))
-  cat("Dataset dimension after missing value treatment :", dim(atl_data))
-  return(atl_data)
-}
+# Neural Network 
+fnl_data$delay_ind=as.numeric(fnl_data$delay_ind)
+maxs <- apply(fnl_data, 2, max) 
+mins <- apply(fnl_data, 2, min)
+scaled <- as.data.frame(scale(fnl_data, center = mins, scale = maxs - mins))
+train_data=scaled[train_ix,]
+test_data=scaled[-train_ix,]
 
+library(neuralnet)
+n <- names(train_data)
+f <- as.formula(paste("delay_ind ~", paste(n[!n %in% "delay_ind"], collapse = " + ")))
+nn <- neuralnet(f,data=train_data,hidden=c(8,4),linear.output=F)
+
+
+dim(train_data_ds)
+logit=glm(Class~.,train_data_ds,family="binomial")
+logit.model=train(delay_ind~.,
+                  data=train_data,
+                  #preProcess = c("center","scale"),
+                  method = "glm",family="binomial"
+)
+summary(logit.model)
+#Test
+
+
+
+# # logit_all=glm(delay_ind~.,train_data,family="binomial")
+# # summary(logit_all)
+# ######## Train Accuracy
+# train_pred=predict(logit,train_data_ds[,1:9],type = "response")
+# # Recode factors
+# train_pred <- ifelse(train_pred > 0.5, 1, 0)
+# mean(train_data_ds$Class==train_pred)
+# 
+test_pred=predict(logit,test_data[,1:9],type = "response")
+test_pred =ifelse(test_pred > 0.5, 1, 0)
+mean(test_data$delay_ind==test_pred)
+test_true=as.factor(test_data$delay_ind)
+Logit_CM=confusionMatrix(factor(test_pred), test_true)
